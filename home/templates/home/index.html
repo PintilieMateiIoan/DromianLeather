@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <meta charset="UTF-8">
+    <title>Home</title>
+</head>
+<body>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'products/style.css' %}">
+
+    <div id="myNav" class="overlay">
+      <a id="closeMenu" href="javascript:void(0)" class="closebtn" onclick="closeNav()" tabindex="-1" aria-label="Exit menu">&times;</a>
+      <div class="overlay-content">
+        <a id="menu-item-1">HOME</a>
+        <a id="menu-item-2">PRODUCTS</a>
+      </div>
+    </div>
+
+    <span id="my-menu" onkeydown="enterMenu(event)" class="open-menu" onclick="openNav()" tabindex="1">&#9776; Menu</span>
+    <img id="logo" alt="" class="img-circle" src="{% static 'products/images/dromi.jpg' %}"/>
+
+    <div id="home-content">
+        <div id="about-artist">
+            <h2>About the artist!</h2>
+                Dromi is an unconventional artist who loves to work with leather. His products are unique and
+            creative. All the products he makes are hand-made. He comes with original patterns which are inspired
+            from nature, animals or human activities. He makes long and normal wallets, tobacco pouches and credit
+            card holders. For his products he uses leather which is refused by big fashion houses from all around
+            Europe.
+        </div>
+        <br><br>
+        <div class="my-prod-home">
+            <div style="text-align: center;">Latest product:</div>
+            {% if latest_product %}
+                {% with latest_product|first as product %}
+                    <div class="card home-card" style="width: 20rem;">
+                        <img class="card-img-top img-responsive" src="{{ product.img_path.url }}"
+                             alt="{{ product.img_description }}"/>
+                        <div class="card-block">
+                            <h4 class="card-title">{{ product.name }}</h4>
+                            {% csrf_token %}
+                            <a id="{{ product.id }}" class="btn btn-primary {{ product.name }} product"
+                               tabindex="5" onkeydown="enterDetails(event, this.id)" onclick="get_details(this.id)">View product</a>
+                        </div>
+                    </div>
+                {% endwith %}
+            {% else %}
+                <p>No products are available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Modal Structure -->
+    <div id="modal1" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-body">
+                </div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openNav() {
+            document.getElementById("myNav").style.width = "100%";
+            $("#menu-item-1").attr("href", "");
+            $("#menu-item-2").attr("href", "../products");
+            $("#menu-item-1").attr("tabindex", "2");
+            $("#menu-item-2").attr("tabindex", "3");
+            $("#closeMenu").attr("tabindex", "4");
+            $("#my-menu").removeAttr("tabindex");
+            $('.product').each(function(i, obj) {
+                $(this).removeAttr("tabindex");
+            });
+        }
+
+        function closeNav() {
+            document.getElementById("myNav").style.width = "0%";
+            $("#menu-item-1").removeAttr("href");
+            $("#menu-item-2").removeAttr("href");
+            $("#menu-item-1").removeAttr("tabindex");
+            $("#menu-item-2").removeAttr("tabindex");
+            $("#closeMenu").attr("tabindex", "-1");
+            $("#my-menu").attr("tabindex", "1");
+            $('.product').each(function(i, obj) {
+                var number = i+4;
+                $(this).attr("tabindex", number);
+            });
+            $("#my-menu").focus();
+        }
+
+        function enterMenu(e) {
+            var keyCode = e.keyCode;
+            if (keyCode == 13) {
+                openNav();
+            }
+        }
+
+        var focusBeforeDetails = null;
+
+        function enterDetails(e, id) {
+            var keyCode = e.keyCode;
+            if (keyCode == 13) {
+                get_details(id);
+            }
+        }
+
+        function enterDetailsRelated(e, id) {
+            var keyCode = e.keyCode;
+            if (keyCode == 13) {
+                get_details_related(id);
+            }
+        }
+
+        function disableBackgroundNav() {
+            $("#my-menu").removeAttr("tabindex");
+                $('.product').each(function(i, obj) {
+                    $(this).removeAttr("tabindex");
+                });
+        }
+
+        $(document).ready(function () {
+            if(document.location.hash != "") {
+                var mystring = document.location.hash;
+                mystring = mystring.replace('#', '');
+                mystring = mystring.replace('%20', ' ');
+                document.getElementsByClassName(mystring)[0].click();
+            }
+        });
+
+        $(window).on('hashchange', function() {
+            if(document.location.hash == "") {
+                closeMod();
+            }
+        });
+
+        var curentProductNameModal;
+        var curentProductIdModal;
+
+        function modopen() {
+            $('.modal').scrollTop(0);
+            document.location.hash = curentProductNameModal;
+        }
+
+        $('.modal').on('hide.bs.modal', function (e) {
+            var original = window.location.href.substr(0, window.location.href.indexOf('#'));
+            history.replaceState({}, document.title, original);
+        });
+
+        function get_details(id) {
+            focusBeforeDetails = id;
+            $('#modal1').modal({
+                backdrop: 'static',
+                keyboard: false
+            });
+            $.ajax({
+                type: "GET",
+                url: "/products/"+id+"/",
+                headers: {
+                    csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+                    id: id,
+                },
+                success: function(data) {
+                    curentProductNameModal = $(data).filter("#pId").text();
+                    curentProductIdModal = id;
+                    modopen();
+                    $(".modal-body").html("");
+                    $(".modal-body").html(data);
+                    $(".modal").scrollTop(0);
+                },
+                error: function(xhr, textStatus, errorThrown) {
+                    alert("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
+                }
+            });
+            disableBackgroundNav();
+        }
+
+        function get_details_related(id) {
+            $.ajax({
+                type: "GET",
+                url: "/products/"+id+"/",
+                headers: {
+                    csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value,
+                    id: id,
+                },
+                success: function(data) {
+                    curentProductNameModal = $(data).filter("#pId").text();
+                    curentProductIdModal = id;
+                    $(".modal-body").html("");
+                    $(".modal-body").html(data);
+                    document.location.hash = curentProductNameModal;
+                    $(".modal").scrollTop(0);
+                },
+                error: function(xhr, textStatus, errorThrown) {
+                    alert("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
+                }
+            });
+        }
+
+        function closeMod() {
+            $('#modal1').modal('hide');
+            $("#my-menu").attr("tabindex", "1");
+            $('.product').each(function(i, obj) {
+                var number = i+4;
+                $(this).attr("tabindex", number);
+            });
+            $("#"+focusBeforeDetails).focus();
+        }
+    </script>
+</body>
+</html>
